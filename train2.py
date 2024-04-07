@@ -5,13 +5,13 @@ from PIL import Image
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader,Dataset
-from model3 import *
+from model4 import *  ##########local sat vs stv
 import pandas as pd
 from transformers import BertModel, BertTokenizer
 from transformers import GPT2Tokenizer, GPT2Model, GPT2Config
 import open_clip
 
-BATCH_SIZE = 32
+BATCH_SIZE = 120
 EPOCH = 100
 device = "cuda:0" if torch.cuda.is_available() else "cpu" # If using GPU then use mixed precision training.
 print(torch.cuda.is_available())
@@ -30,10 +30,10 @@ class image_title_dataset(Dataset):
         self.stv_path = stv_path
         self.data = pd.read_csv(data_csv)
         self.img_name_list = list(self.data['stv_img_name1'])
-        self.text_list = list(self.data['text'])
-        # 配置微调参数
-        self.model_name = "gpt2"  # 预训练模型的名称
-        self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_name, pad_token='<|pad|>')#, eos_token='<|endoftext|>'
+        # self.text_list = list(self.data['text'])
+        # # 配置微调参数
+        # self.model_name = "gpt2"  # 预训练模型的名称
+        # self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_name, pad_token='<|pad|>')#, eos_token='<|endoftext|>'
 
         # self.model_name = 'bert-base-uncased' #'uncased_L-12_H-768_A-12/uncased_L-12_H-768_A-12' #/bert-base-uncased
         # self.tokenizer = BertTokenizer.from_pretrained(self.model_name)
@@ -53,18 +53,18 @@ class image_title_dataset(Dataset):
         si_local_image = preprocess(Image.open(sat_local_path)) # Image from PIL module
         stv_image = preprocess(Image.open(stv_path)) # Image from PIL module
 
-        # title = clip.tokenize(self.text_list[idx])
-        text = self.text_list[idx]
-        # text = "<CLS> " + text
-        # self.pad_token = self.tokenizer.eos_token
-        # self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        inputs = self.tokenizer(text,return_tensors="pt",max_length=512, padding='max_length' )#,truncation=True
-        # 加载预训练的BERT模型和分词器
-        # tmp = self.tokenizer.batch_encode_plus([text], add_special_tokens=True, max_length=512,padding='max_length', return_attention_mask=True)
-        # title = torch.tensor(inputs['input_ids']).squeeze(0)
-        # attention_mask = torch.tensor(inputs['attention_mask'])
-        # print(inputs)
-        return si_global_image.to(device),si_local_image.to(device),stv_image.to(device),inputs.to(device)#title.to(device),attention_mask.to(device)
+        # # title = clip.tokenize(self.text_list[idx])
+        # text = self.text_list[idx]
+        # # text = "<CLS> " + text
+        # # self.pad_token = self.tokenizer.eos_token
+        # # self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        # inputs = self.tokenizer(text,return_tensors="pt",max_length=512, padding='max_length' )#,truncation=True
+        # # 加载预训练的BERT模型和分词器
+        # # tmp = self.tokenizer.batch_encode_plus([text], add_special_tokens=True, max_length=512,padding='max_length', return_attention_mask=True)
+        # # title = torch.tensor(inputs['input_ids']).squeeze(0)
+        # # attention_mask = torch.tensor(inputs['attention_mask'])
+        # # print(inputs)
+        return si_global_image.to(device),si_local_image.to(device),stv_image.to(device) #,inputs.to(device)#title.to(device),attention_mask.to(device)
 
 train_file = 'SAT_STV_concat_text_single_sat_global.csv'
 # use your own data
@@ -87,11 +87,11 @@ for epoch in range(EPOCH):
   for batch in train_dataloader :
       optimizer.zero_grad()
 
-      images_g,images_l,images_stv,texts = batch #,att_text
+      images_g,images_l,images_stv = batch #,texts,att_text
       # print(texts.shape)
       # print(att_text.shape)
     #   print(texts)
-      loss_1, loss_2 = model(images_g,images_l,images_stv,texts) #,att_text #, loss2_1, loss2_2
+      loss_1, loss_2 = model(images_g,images_l,images_stv,_) #,texts,att_text #, loss2_1, loss2_2
       total_loss = loss_1+ loss_2#+ loss2_1+ loss2_2
       total_loss = total_loss/BATCH_SIZE
 
@@ -122,4 +122,4 @@ torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'loss': total_loss,
-        }, f"model_checkpoint/model_test.pt") #just change to your preferred folder/filename
+        }, f"model_checkpoint2/model_test.pt") #just change to your preferred folder/filename
